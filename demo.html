@@ -1,0 +1,1179 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planning App - Prototype</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%234C662B'><rect x='3' y='4' width='18' height='18' rx='2'/><path d='M16 2v4M8 2v4M3 10h18' stroke='%234C662B' stroke-width='2' fill='none'/></svg>">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL@20..48,100..700,0..1" rel="stylesheet">
+    <link rel="stylesheet" href="theme.css">
+    <script src="config.js"></script>
+    <script>
+      window.PLANNING_APP_CONFIG = window.PLANNING_APP_CONFIG || {};
+      if (!window.PLANNING_APP_CONFIG.googleMapsApiKey) {
+        window.PLANNING_APP_CONFIG.googleMapsApiKey = 'AIzaSyDicTqK8IwuOxQMNgmbDpk71kkmgAfZqB0';
+      }
+    </script>
+    <script type="importmap">
+    {
+        "imports": {
+            "@material/web/": "https://esm.run/@material/web/"
+        }
+    }
+    </script>
+    <script type="module">
+        import '@material/web/all.js';
+        import { styles as typescaleStyles } from '@material/web/typography/md-typescale-styles.js';
+        document.adoptedStyleSheets.push(typescaleStyles.styleSheet);
+    </script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: var(--md-sys-color-background);
+            color: var(--md-sys-color-on-background);
+            min-height: 100vh;
+        }
+        .app { min-height: 100vh; display: flex; flex-direction: column; }
+        .app-header {
+            background: var(--md-sys-color-surface);
+            border-bottom: 1px solid var(--md-sys-color-outline-variant);
+            padding: 1rem 1.5rem;
+        }
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: var(--md-sys-color-primary);
+        }
+        .logo h1 { font-size: 1.5rem; font-weight: 600; }
+        .home-address {
+            display: block;
+            font-size: 0.7rem;
+            font-weight: 400;
+            color: var(--md-sys-color-on-surface-variant);
+            margin-top: 0.125rem;
+        }
+        .toolbar {
+            background: var(--md-sys-color-surface);
+            border-bottom: 1px solid var(--md-sys-color-outline-variant);
+            padding: 1rem 1.5rem;
+        }
+        .toolbar-inner {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .view-switcher { display: flex; gap: 0.5rem; }
+        md-filled-button,
+        md-filled-tonal-button,
+        md-text-button,
+        md-icon-button {
+            padding-left: 16px !important;
+            padding-right: 16px !important;
+        }
+        .view-switcher md-filled-tonal-button.active {
+            --md-filled-tonal-button-container-color: var(--md-sys-color-secondary-container);
+            --md-filled-tonal-button-label-text-color: var(--md-sys-color-on-secondary-container);
+        }
+        .date-navigator {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+        }
+        .date-display { text-align: center; }
+        .current-date {
+            min-width: 280px;
+            text-align: center;
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--md-sys-color-on-surface);
+        }
+        .current-date-label {
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--md-sys-color-on-surface-variant);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.25rem;
+        }
+        .main-content {
+            flex: 1;
+            max-width: 1200px;
+            width: 100%;
+            margin: 1.5rem auto;
+            padding: 0 1.5rem;
+        }
+        .day-view {
+            background: var(--md-sys-color-surface-container-low);
+            border-radius: 16px;
+            padding: 1.5rem;
+            position: relative;
+            min-height: 720px;
+        }
+        .time-grid { position: relative; }
+        .time-slot {
+            height: 100px;
+            position: relative;
+            border-bottom: 1px solid var(--md-sys-color-outline-variant);
+        }
+        .time-label {
+            position: absolute;
+            left: 0;
+            top: -10px;
+            font-size: 0.75rem;
+            color: var(--md-sys-color-on-surface-variant);
+            font-weight: 500;
+        }
+        .appointments-container {
+            position: absolute;
+            left: 72px;
+            right: 1.5rem;
+            top: 1.5rem;
+            min-height: calc((22 - 6) * 100px);
+            cursor: pointer;
+        }
+        .appointment-card {
+            position: absolute;
+            left: 0;
+            right: 0;
+            overflow-y: auto;
+            cursor: pointer;
+            background: var(--md-sys-color-primary-container);
+            border: 1px solid var(--md-sys-color-primary);
+            border-left: 4px solid var(--md-sys-color-primary);
+            border-radius: 12px;
+            padding: 0.5rem 0.75rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        .appointment-card.travel-block {
+            background: var(--md-sys-color-tertiary-container);
+            border-color: var(--md-sys-color-tertiary);
+            border-left-color: var(--md-sys-color-tertiary);
+        }
+        .appointment-time {
+            font-size: 0.7rem;
+            color: var(--md-sys-color-on-surface-variant);
+            font-weight: 500;
+            margin-bottom: 0.125rem;
+        }
+        .appointment-title {
+            font-weight: 600;
+            color: var(--md-sys-color-on-surface);
+            font-size: 0.8125rem;
+            margin-bottom: 0.125rem;
+            line-height: 1.2;
+        }
+        .appointment-location {
+            font-size: 0.7rem;
+            color: var(--md-sys-color-on-surface-variant);
+            line-height: 1.25;
+        }
+        .appointment-description {
+            font-size: 0.7rem;
+            color: var(--md-sys-color-on-surface-variant);
+            margin-top: 0.125rem;
+            font-style: italic;
+            line-height: 1.25;
+        }
+        .travel-route {
+            margin-top: 0.25rem;
+            padding-top: 0.25rem;
+            border-top: 1px solid var(--md-sys-color-outline-variant);
+        }
+        .travel-route-row {
+            font-size: 0.75rem;
+            color: var(--md-sys-color-on-surface);
+            margin-bottom: 0.125rem;
+            line-height: 1.25;
+        }
+        .travel-label {
+            font-weight: 600;
+            color: var(--md-sys-color-on-surface-variant);
+            margin-right: 0.25rem;
+        }
+        .travel-duration {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--md-sys-color-on-surface-variant);
+            margin-top: 0.125rem;
+        }
+        .week-view {
+            display: none;
+            background: var(--md-sys-color-surface-container-low);
+            border-radius: 16px;
+            padding: 1.5rem;
+        }
+        .week-view.active { display: block; }
+        .day-view.hidden { display: none; }
+        .week-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 0.5rem;
+        }
+        .week-day {
+            background: var(--md-sys-color-surface);
+            border-radius: 12px;
+            padding: 1rem;
+            min-height: 120px;
+            border: 2px solid transparent;
+        }
+        .week-day.today { border-color: var(--md-sys-color-primary); }
+        .week-day-header {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--md-sys-color-on-surface-variant);
+            margin-bottom: 0.5rem;
+        }
+        .week-day-appointments { font-size: 0.8125rem; }
+        .week-travel-route {
+            display: block;
+            font-size: 0.7rem;
+            color: var(--md-sys-color-on-surface-variant);
+            font-weight: normal;
+            margin-top: 0.125rem;
+        }
+        .week-appointment {
+            padding: 0.375rem 0;
+            border-bottom: 1px solid var(--md-sys-color-outline-variant);
+        }
+        .week-appointment:last-child { border-bottom: none; }
+        .form-row { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.75rem; }
+        .form-row-inline { flex-direction: row; flex-wrap: wrap; }
+        .form-row-inline .form-field { flex: 1; min-width: 120px; }
+        .form-label {
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--md-sys-color-on-surface-variant);
+        }
+        .form-input {
+            width: 100%;
+            padding: 0.6rem 1rem;
+            border: 1px solid var(--md-sys-color-outline);
+            border-radius: 4px;
+            font-size: 1rem;
+            font-family: inherit;
+            background: var(--md-sys-color-surface);
+            color: var(--md-sys-color-on-surface);
+        }
+        .form-input:focus {
+            outline: none;
+            border-color: var(--md-sys-color-primary);
+            box-shadow: 0 0 0 2px rgba(76, 102, 43, 0.2);
+        }
+        .form-input::placeholder { color: var(--md-sys-color-on-surface-variant); opacity: 0.7; }
+        .autocomplete-wrapper { position: relative; }
+        .autocomplete-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            margin-top: 2px;
+            max-height: 220px;
+            overflow-y: auto;
+            background: var(--md-sys-color-surface);
+            border: 1px solid var(--md-sys-color-outline);
+            border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 100;
+            display: none;
+        }
+        .autocomplete-dropdown.visible { display: block; }
+        .pac-container { z-index: 10000 !important; }
+        md-dialog#dialog-detail {
+            margin: auto;
+            max-width: min(480px, calc(100vw - 48px));
+        }
+        md-dialog#dialog-detail [slot="headline"] {
+            padding: 24px 24px 0;
+        }
+        .detail-content {
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .detail-row {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+        .detail-label {
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--md-sys-color-on-surface-variant);
+        }
+        .detail-value {
+            font-size: 0.9375rem;
+            line-height: 1.4;
+            color: var(--md-sys-color-on-surface);
+        }
+        .detail-actions {
+            padding: 24px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+        .autocomplete-item {
+            padding: 0.75rem 1rem;
+            font-size: 0.9375rem;
+            cursor: pointer;
+            border-bottom: 1px solid var(--md-sys-color-outline-variant);
+            color: var(--md-sys-color-on-surface);
+        }
+        .autocomplete-item:last-child { border-bottom: none; }
+        .autocomplete-item:hover,
+        .autocomplete-item.highlighted {
+            background: var(--md-sys-color-primary-container);
+            color: var(--md-sys-color-on-primary-container);
+        }
+        .autocomplete-item small {
+            display: block;
+            font-size: 0.75rem;
+            color: var(--md-sys-color-on-surface-variant);
+            margin-top: 0.25rem;
+        }
+        .autocomplete-loading { padding: 0.75rem 1rem; font-size: 0.875rem; color: var(--md-sys-color-on-surface-variant); }
+        .form-actions,
+        .detail-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+        md-dialog#dialog-add {
+            margin: auto;
+            max-width: min(480px, calc(100vw - 48px));
+            min-height: 520px;
+            max-height: 95vh;
+        }
+        md-dialog#dialog-add [slot="headline"] {
+            padding: 24px 24px 0;
+        }
+        #appointment-form {
+            padding: 24px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <header class="app-header">
+            <div class="header-content">
+                <div class="logo">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                        <line x1="16" y1="2" x2="16" y2="6"></line>
+                        <line x1="8" y1="2" x2="8" y2="6"></line>
+                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                    </svg>
+                    <div>
+                        <h1 class="md-typescale-headline-small">Planning App</h1>
+                        <span class="home-address" title="Startadres bij reistijdberekening">Thuis: Zilveren Florijnlaan 7, Utrecht</span>
+                    </div>
+                </div>
+                <md-filled-button id="btn-add" has-icon>
+                    <svg slot="icon" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                    Afspraak
+                </md-filled-button>
+            </div>
+        </header>
+
+        <div class="toolbar">
+            <div class="toolbar-inner">
+                <div class="view-switcher">
+                    <md-filled-tonal-button id="view-day" class="active">Dag</md-filled-tonal-button>
+                    <md-filled-tonal-button id="view-week">Week</md-filled-tonal-button>
+                </div>
+                <div class="date-navigator">
+                    <md-icon-button id="btn-prev" aria-label="Vorige dag">
+                        <md-icon>chevron_left</md-icon>
+                    </md-icon-button>
+                    <div class="date-display">
+                        <div class="current-date-label">Dag</div>
+                        <h2 class="current-date md-typescale-title-medium" id="current-date"></h2>
+                    </div>
+                    <md-icon-button id="btn-next" aria-label="Volgende dag">
+                        <md-icon>chevron_right</md-icon>
+                    </md-icon-button>
+                    <md-text-button id="btn-today">Vandaag</md-text-button>
+                    <md-text-button id="btn-clear-data" title="Alle afspraken wissen">Data wissen</md-text-button>
+                </div>
+            </div>
+        </div>
+
+        <main class="main-content">
+            <div class="day-view" id="day-view">
+                <div class="time-grid" id="time-grid"></div>
+                <div class="appointments-container" id="appointments-container"></div>
+            </div>
+            <div class="week-view" id="week-view">
+                <div class="week-grid" id="week-grid"></div>
+            </div>
+        </main>
+    </div>
+
+    <md-dialog id="dialog-add">
+        <div slot="headline" class="md-typescale-headline-small">Nieuwe afspraak</div>
+        <form slot="content" id="appointment-form" method="dialog">
+            <div class="form-row">
+                <label class="form-label">Datum</label>
+                <input type="date" id="field-date" class="form-input" required>
+            </div>
+            <div class="form-row">
+                <label class="form-label">Titel</label>
+                <input type="text" id="field-title" class="form-input" placeholder="Bijv. Meeting met klant" required>
+            </div>
+            <div class="form-row">
+                <label class="form-label">Locatie / adres</label>
+                <div class="autocomplete-wrapper">
+                    <input type="text" id="field-location" class="form-input" placeholder="Typ adres, straat of plaats — voor reistijdberekening" autocomplete="off">
+                    <div class="autocomplete-dropdown" id="location-suggestions" role="listbox"></div>
+                </div>
+            </div>
+            <div class="form-row form-row-inline">
+                <div class="form-field">
+                    <label class="form-label">Starttijd</label>
+                    <input type="time" id="field-start" class="form-input" required>
+                </div>
+                <div class="form-field">
+                    <label class="form-label">Eindtijd</label>
+                    <input type="time" id="field-end" class="form-input" required>
+                </div>
+            </div>
+            <div class="form-row">
+                <label class="form-label">Omschrijving</label>
+                <input type="text" id="field-desc" class="form-input" placeholder="Optioneel">
+            </div>
+            <div class="form-actions">
+                <md-text-button form="appointment-form" value="cancel">Annuleren</md-text-button>
+                <md-filled-button form="appointment-form" value="save">Opslaan</md-filled-button>
+            </div>
+        </form>
+    </md-dialog>
+
+    <md-dialog id="dialog-detail">
+        <div slot="headline" class="md-typescale-headline-small">Afspraakdetails</div>
+        <div slot="content" id="detail-content" class="detail-content"></div>
+        <div slot="actions" class="detail-actions">
+            <md-text-button id="btn-detail-delete">Verwijderen</md-text-button>
+            <md-filled-button id="btn-detail-edit">Bewerken</md-filled-button>
+            <md-text-button id="btn-detail-close">Sluiten</md-text-button>
+        </div>
+    </md-dialog>
+
+    <script type="module">
+        const STORAGE_KEY = 'planning-appointments';
+        const HOME_ADDRESS = 'Zilveren Florijnlaan 7, Utrecht';
+        const GOOGLE_MAPS_API_KEY = (window.PLANNING_APP_CONFIG?.googleMapsApiKey || '').trim();
+        const SLOT_HEIGHT = 100;
+        const START_HOUR = 6;
+        const END_HOUR = 22;
+
+        function formatTime(date) {
+            return date.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
+        }
+        function formatDateNL(date) {
+            const days = ['Zondag','Maandag','Dinsdag','Woensdag','Donderdag','Vrijdag','Zaterdag'];
+            const months = ['januari','februari','maart','april','mei','juni','juli','augustus','september','oktober','november','december'];
+            return `${days[date.getDay()]} ${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
+        }
+        function dateKey(d) {
+            return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        }
+
+        function normalizeAddressForComparison(addr) {
+            if (!addr || typeof addr !== 'string') return '';
+            let s = addr.trim().toLowerCase()
+                .replace(/,?\s*nederland\s*$/i, '')
+                .replace(/,/g, ' ')
+                .replace(/\s+\d+[a-zA-Z]?\s+/g, ' ')
+                .replace(/\s+\d+[a-zA-Z]?\s*$/g, '')
+                .replace(/\s+/g, ' ')
+                .trim();
+            return s;
+        }
+
+        function loadAppointments() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                return raw ? JSON.parse(raw) : [];
+            } catch { return []; }
+        }
+        function saveAppointments(apts) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(apts));
+        }
+
+        function loadGoogleMaps() {
+            if (window.__planningMapsLoaded) return Promise.resolve();
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&loading=async`;
+                script.async = true;
+                script.defer = true;
+                script.onload = () => { window.__planningMapsLoaded = true; resolve(); };
+                script.onerror = () => reject(new Error('Google Maps laden mislukt'));
+                document.head.appendChild(script);
+            });
+        }
+
+        function ensureNLAddress(addr) {
+            if (!addr?.trim()) return addr;
+            const a = addr.trim();
+            if (/nederland|netherlands/i.test(a)) return a;
+            return a + ', Nederland';
+        }
+
+        function roundTravelMinutes(min) {
+            if (min <= 5) return 5;
+            return Math.ceil(min / 5) * 5;
+        }
+
+        async function fetchTravelTime(origin, destination, departureTime, destinationPlaceId) {
+            if ((!destination?.trim() && !destinationPlaceId) || !GOOGLE_MAPS_API_KEY) return { minutes: 0, distanceKm: null };
+            const now = new Date();
+            const useTraffic = departureTime && departureTime >= now;
+            const o = ensureNLAddress(origin);
+            const d = destinationPlaceId ? null : ensureNLAddress(destination);
+            const destStr = destinationPlaceId ? `place_id:${destinationPlaceId}` : d;
+            try {
+                await loadGoogleMaps();
+                let result = null;
+                try {
+                    const { Route } = await google.maps.importLibrary('routes');
+                    const { Place } = await google.maps.importLibrary('places');
+                    const dest = destinationPlaceId ? new Place({ id: destinationPlaceId }) : d;
+                    const request = {
+                        origin: o,
+                        destination: dest,
+                        travelMode: google.maps.TravelMode.DRIVING,
+                        regionCode: 'nl',
+                        fields: ['durationMillis', 'distanceMeters']
+                    };
+                    if (useTraffic) {
+                        request.routingPreference = 'TRAFFIC_AWARE_OPTIMAL';
+                        request.departureTime = departureTime;
+                    }
+                    const { routes } = await Route.computeRoutes(request);
+                    if (routes?.[0]) {
+                        const r = routes[0];
+                        const durationMs = r.durationMillis ?? 0;
+                        const distanceM = r.distanceMeters ?? 0;
+                        result = {
+                            minutes: roundTravelMinutes(durationMs / 60000),
+                            distanceKm: distanceM > 0 ? Math.round(distanceM / 1000) : null
+                        };
+                    }
+                } catch (_) {}
+                if (!result?.minutes) {
+                    result = await new Promise((resolve) => {
+                        const service = new google.maps.DirectionsService();
+                        const req = {
+                            origin: o,
+                            destination: destStr,
+                            travelMode: google.maps.TravelMode.DRIVING
+                        };
+                        if (useTraffic) {
+                            req.drivingOptions = {
+                                departureTime: departureTime,
+                                trafficModel: google.maps.TrafficModel.BEST_GUESS
+                            };
+                        }
+                        service.route(req, (res, status) => {
+                            if (status !== google.maps.DirectionsStatus.OK || !res?.routes?.[0]?.legs?.[0]) {
+                                resolve(null);
+                                return;
+                            }
+                            const leg = res.routes[0].legs[0];
+                            const durationSec = (leg.duration_in_traffic || leg.duration)?.value ?? 0;
+                            const distanceM = leg.distance?.value ?? 0;
+                            resolve({
+                                minutes: roundTravelMinutes(durationSec / 60),
+                                distanceKm: distanceM > 0 ? Math.round(distanceM / 1000) : null
+                            });
+                        });
+                    });
+                }
+                return result || { minutes: 0, distanceKm: null };
+            } catch (e) {
+                return { minutes: 0, distanceKm: null };
+            }
+        }
+
+        let currentDate = new Date();
+        currentDate.setHours(0, 0, 0, 0);
+        let viewMode = 'day';
+        let appointments = loadAppointments();
+
+        function getAppointmentsForDate(d) {
+            const key = dateKey(d);
+            return appointments.filter(a => {
+                const start = new Date(a.startTime);
+                return dateKey(start) === key;
+            }).sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
+        }
+
+        function renderTimeGrid() {
+            const grid = document.getElementById('time-grid');
+            grid.innerHTML = '';
+            for (let h = START_HOUR; h < END_HOUR; h++) {
+                const slot = document.createElement('div');
+                slot.className = 'time-slot';
+                slot.innerHTML = `<div class="time-label">${String(h).padStart(2,'0')}:00</div>`;
+                grid.appendChild(slot);
+            }
+        }
+
+        function topForTime(date) {
+            const d = new Date(date);
+            const hours = d.getHours() + d.getMinutes() / 60;
+            return (hours - START_HOUR) * SLOT_HEIGHT;
+        }
+        function timeForTop(offsetY) {
+            const totalMinutes = Math.max(0, (offsetY / SLOT_HEIGHT) * 60);
+            let hours = Math.floor(totalMinutes / 60);
+            let mins = Math.round((totalMinutes % 60) / 15) * 15;
+            if (mins >= 60) { hours += 1; mins = 0; }
+            return { hours: START_HOUR + hours, minutes: mins };
+        }
+        function heightForDuration(start, end) {
+            return ((new Date(end) - new Date(start)) / (1000 * 60)) * (SLOT_HEIGHT / 60);
+        }
+
+        function renderDayView() {
+            const container = document.getElementById('appointments-container');
+            container.innerHTML = '';
+            const apts = getAppointmentsForDate(currentDate);
+            apts.forEach(a => {
+                const el = document.createElement('div');
+                el.className = 'appointment-card' + (a.isTravelBlock ? ' travel-block' : '');
+                el.dataset.aptId = a.id;
+                const start = new Date(a.startTime);
+                const end = new Date(a.endTime);
+                el.style.top = (topForTime(start) + 10) + 'px';
+                el.style.height = (heightForDuration(start, end) - 10) + 'px';
+                let content = `
+                    <div class="appointment-time">${formatTime(start)} - ${formatTime(end)}</div>
+                    <div class="appointment-title">${escapeHtml(a.title)}</div>
+                `;
+                if (a.isTravelBlock) {
+                    const from = a.travelOrigin || (a.location ? a.location.replace(/^Van (.+) naar .+$/, '$1').trim() : '') || '—';
+                    const to = a.travelDestination || (a.location ? a.location.replace(/^Van .+ naar (.+)$/, '$1').trim() : '') || '—';
+                    const dur = a.travelMinutes != null ? a.travelMinutes + ' min' : (a.description || '');
+                    const dist = a.travelDistanceKm != null ? ' (' + a.travelDistanceKm + ' km)' : '';
+                    content += `
+                        <div class="travel-route">
+                            <div class="travel-route-row"><span class="travel-label">Vertrek:</span> ${escapeHtml(from)}</div>
+                            <div class="travel-route-row"><span class="travel-label">Naar:</span> ${escapeHtml(to)}</div>
+                            <div class="travel-duration">${escapeHtml(dur)}${dist}</div>
+                        </div>
+                    `;
+                } else {
+                    content += a.location ? `<div class="appointment-location">📍 ${escapeHtml(a.location)}</div>` : '';
+                    content += a.description ? `<div class="appointment-description">${escapeHtml(a.description)}</div>` : '';
+                }
+                el.innerHTML = content;
+                container.appendChild(el);
+            });
+        }
+
+        function escapeHtml(s) {
+            if (!s) return '';
+            const div = document.createElement('div');
+            div.textContent = s;
+            return div.innerHTML;
+        }
+
+        function shortenAddress(addr, maxLen = 22) {
+            if (!addr || typeof addr !== 'string') return '';
+            const t = addr.trim();
+            if (t.length <= maxLen) return t;
+            return t.slice(0, maxLen - 1) + '…';
+        }
+
+        function renderWeekView() {
+            const grid = document.getElementById('week-grid');
+            grid.innerHTML = '';
+            const startOfWeek = new Date(currentDate);
+            startOfWeek.setDate(currentDate.getDate() - currentDate.getDay() + 1);
+            const todayKey = dateKey(new Date());
+            for (let i = 0; i < 7; i++) {
+                const d = new Date(startOfWeek);
+                d.setDate(startOfWeek.getDate() + i);
+                const dayApts = getAppointmentsForDate(d);
+                const dayEl = document.createElement('div');
+                dayEl.className = 'week-day' + (dateKey(d) === todayKey ? ' today' : '');
+                dayEl.innerHTML = `
+                    <div class="week-day-header">${formatDateNL(d)}</div>
+                    <div class="week-day-appointments">
+                        ${dayApts.length === 0 ? '<span style="color:var(--md-sys-color-on-surface-variant)">Geen afspraken</span>' : ''}
+                        ${dayApts.map(a => {
+                            const s = new Date(a.startTime);
+                            const e = new Date(a.endTime);
+                            let label = escapeHtml(a.title);
+                            if (a.isTravelBlock && (a.travelOrigin || a.travelDestination)) {
+                                const from = shortenAddress(a.travelOrigin || '');
+                                const to = shortenAddress(a.travelDestination || '');
+                                if (from || to) label += ` <span class="week-travel-route">van ${escapeHtml(from || '?')} → ${escapeHtml(to || '?')}</span>`;
+                            } else if (a.isTravelBlock && a.location) {
+                                const m = a.location.match(/^Van (.+) naar (.+)$/);
+                                if (m) label += ` <span class="week-travel-route">van ${escapeHtml(shortenAddress(m[1]))} → ${escapeHtml(shortenAddress(m[2]))}</span>`;
+                            }
+                            return `<div class="week-appointment"><strong>${formatTime(s)}</strong> ${label}</div>`;
+                        }).join('')}
+                    </div>
+                `;
+                grid.appendChild(dayEl);
+            }
+        }
+
+        function render() {
+            document.getElementById('current-date').textContent = formatDateNL(currentDate);
+            if (viewMode === 'day') {
+                document.getElementById('day-view').classList.remove('hidden');
+                document.getElementById('week-view').classList.remove('active');
+                renderDayView();
+            } else {
+                document.getElementById('day-view').classList.add('hidden');
+                document.getElementById('week-view').classList.add('active');
+                renderWeekView();
+            }
+        }
+
+        document.getElementById('btn-today').addEventListener('click', () => {
+            currentDate = new Date();
+            currentDate.setHours(0, 0, 0, 0);
+            render();
+        });
+        document.getElementById('btn-clear-data').addEventListener('click', () => {
+            if (confirm('Alle afspraken wissen? Dit kan niet ongedaan worden.')) {
+                appointments = [];
+                saveAppointments(appointments);
+                render();
+            }
+        });
+        document.getElementById('btn-prev').addEventListener('click', () => {
+            currentDate.setDate(currentDate.getDate() - 1);
+            render();
+        });
+        document.getElementById('btn-next').addEventListener('click', () => {
+            currentDate.setDate(currentDate.getDate() + 1);
+            render();
+        });
+        document.getElementById('view-day').addEventListener('click', () => {
+            viewMode = 'day';
+            document.querySelectorAll('.view-switcher md-filled-tonal-button').forEach(b => b.classList.remove('active'));
+            document.getElementById('view-day').classList.add('active');
+            render();
+        });
+        document.getElementById('view-week').addEventListener('click', () => {
+            viewMode = 'week';
+            document.querySelectorAll('.view-switcher md-filled-tonal-button').forEach(b => b.classList.remove('active'));
+            document.getElementById('view-week').classList.add('active');
+            render();
+        });
+
+        const dialog = document.getElementById('dialog-add');
+        const form = document.getElementById('appointment-form');
+        const locationInput = document.getElementById('field-location');
+        let currentDetailAppointment = null;
+        let currentDetailApt = null;
+        const suggestionsEl = document.getElementById('location-suggestions');
+        let placesAutocompleteInit = false;
+        let pdokAutocompleteInit = false;
+
+        async function initPlacesAutocomplete() {
+            if (placesAutocompleteInit || !GOOGLE_MAPS_API_KEY) return;
+            try {
+                await loadGoogleMaps();
+                const { Autocomplete } = await google.maps.importLibrary('places');
+                const autocomplete = new Autocomplete(locationInput, {
+                    componentRestrictions: { country: 'nl' },
+                    types: ['address'],
+                    fields: ['formatted_address', 'place_id']
+                });
+                autocomplete.addListener('place_changed', () => {
+                    const place = autocomplete.getPlace();
+                    if (place.formatted_address) {
+                        locationInput.dataset.placeId = place.place_id || '';
+                        locationInput.dataset.fromPlaceSelect = '1';
+                        locationInput.value = place.formatted_address;
+                    }
+                });
+                locationInput.addEventListener('input', () => {
+                    if (!locationInput.dataset.fromPlaceSelect) delete locationInput.dataset.placeId;
+                    delete locationInput.dataset.fromPlaceSelect;
+                });
+                suggestionsEl.style.display = 'none';
+                placesAutocompleteInit = true;
+            } catch (e) {
+                initPDOKAutocomplete();
+            }
+        }
+
+        async function fetchAddressSuggestions(query) {
+            if (!query || query.length < 2) return [];
+            try {
+                const url = `https://api.pdok.nl/bzk/locatieserver/search/v3_1/free?q=${encodeURIComponent(query)}&rows=8&fq=type:(adres OR weg OR postcode)`;
+                const res = await fetch(url);
+                if (!res.ok) return [];
+                const data = await res.json();
+                const docs = data?.response?.docs ?? [];
+                return docs.map(d => ({
+                    label: d.weergavenaam,
+                    type: d.type,
+                    gemeente: d.gemeentenaam
+                }));
+            } catch (e) {
+                return [];
+            }
+        }
+
+        let debounceTimer;
+        let suggestions = [];
+        let highlightedIdx = -1;
+
+        function showSuggestions(items) {
+            suggestions = items;
+            highlightedIdx = -1;
+            if (items.length === 0) {
+                suggestionsEl.innerHTML = '<div class="autocomplete-loading">Geen adressen gevonden</div>';
+            } else {
+                suggestionsEl.innerHTML = items.map((item, i) =>
+                    `<div class="autocomplete-item" data-idx="${i}" role="option">${escapeHtml(item.label)}${item.gemeente ? `<small>${escapeHtml(item.gemeente)}</small>` : ''}</div>`
+                ).join('');
+            }
+            suggestionsEl.classList.add('visible');
+        }
+
+        function hideSuggestions() {
+            suggestionsEl.classList.remove('visible');
+        }
+
+        function selectSuggestion(idx) {
+            if (suggestions[idx]) {
+                locationInput.value = suggestions[idx].label;
+                hideSuggestions();
+            }
+        }
+
+        function initPDOKAutocomplete() {
+            if (pdokAutocompleteInit) return;
+            pdokAutocompleteInit = true;
+            suggestionsEl.style.display = '';
+            locationInput.addEventListener('input', onPDOKInput);
+            locationInput.addEventListener('keydown', onPDOKKeydown);
+            suggestionsEl.addEventListener('click', onPDOKClick);
+        }
+
+        function onPDOKInput() {
+            clearTimeout(debounceTimer);
+            const q = locationInput.value.trim();
+            if (q.length < 2) {
+                hideSuggestions();
+                return;
+            }
+            suggestionsEl.innerHTML = '<div class="autocomplete-loading">Zoeken…</div>';
+            suggestionsEl.classList.add('visible');
+            debounceTimer = setTimeout(async () => {
+                const items = await fetchAddressSuggestions(q);
+                showSuggestions(items);
+            }, 300);
+        }
+
+        function onPDOKKeydown(e) {
+            if (!suggestionsEl.classList.contains('visible')) return;
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                highlightedIdx = Math.min(highlightedIdx + 1, suggestions.length - 1);
+                suggestionsEl.querySelectorAll('.autocomplete-item').forEach((el, i) => el.classList.toggle('highlighted', i === highlightedIdx));
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                highlightedIdx = Math.max(highlightedIdx - 1, -1);
+                suggestionsEl.querySelectorAll('.autocomplete-item').forEach((el, i) => el.classList.toggle('highlighted', i === highlightedIdx));
+            } else if (e.key === 'Enter' && highlightedIdx >= 0 && suggestions[highlightedIdx]) {
+                e.preventDefault();
+                selectSuggestion(highlightedIdx);
+            } else if (e.key === 'Escape') {
+                hideSuggestions();
+            }
+        }
+
+        function onPDOKClick(e) {
+            const item = e.target.closest('.autocomplete-item');
+            if (item) selectSuggestion(parseInt(item.dataset.idx, 10));
+        }
+
+        document.addEventListener('click', (e) => {
+            const wrapper = locationInput.closest('.autocomplete-wrapper');
+            if (wrapper && !wrapper.contains(e.target)) hideSuggestions();
+        });
+
+        if (!GOOGLE_MAPS_API_KEY) {
+            initPDOKAutocomplete();
+        }
+
+        document.getElementById('btn-detail-close').addEventListener('click', () => {
+            document.getElementById('dialog-detail').close();
+        });
+
+        document.getElementById('btn-detail-edit').addEventListener('click', () => {
+            if (!currentDetailAppointment) return;
+            document.getElementById('dialog-detail').close();
+            initPDOKAutocomplete();
+            openAddDialog(null, null, currentDetailAppointment);
+        });
+
+        document.getElementById('btn-detail-delete').addEventListener('click', () => {
+            if (!currentDetailApt) return;
+            if (!confirm('Weet je zeker dat je deze afspraak wilt verwijderen?')) return;
+            const idsToRemove = [currentDetailApt.id];
+            if (currentDetailApt.isTravelBlock) {
+                const nextApt = appointments.find(a => !a.isTravelBlock && a.startTime === currentDetailApt.endTime);
+                if (nextApt) idsToRemove.push(nextApt.id);
+            } else {
+                const dayKey = dateKey(new Date(currentDetailApt.startTime));
+                const travelBlock = appointments.find(a =>
+                    a.isTravelBlock && dateKey(new Date(a.startTime)) === dayKey && a.endTime === currentDetailApt.startTime
+                );
+                if (travelBlock) idsToRemove.push(travelBlock.id);
+            }
+            appointments = appointments.filter(a => !idsToRemove.includes(a.id));
+            saveAppointments(appointments);
+            document.getElementById('dialog-detail').close();
+            render();
+        });
+
+        function openAddDialog(start, end, editApt = null) {
+            form.dataset.editingId = editApt ? editApt.id : '';
+            const d = editApt ? new Date(editApt.startTime) : currentDate;
+            document.getElementById('field-date').value = dateKey(d);
+            document.getElementById('field-title').value = editApt ? (editApt.title || '').replace(/^🚗 Reis naar /, '') : '';
+            document.getElementById('field-location').value = editApt ? (editApt.location || '') : '';
+            else if (!editApt) delete locationInput.dataset.placeId;
+            const s = editApt ? new Date(editApt.startTime) : start;
+            const e = editApt ? new Date(editApt.endTime) : end;
+            document.getElementById('field-start').value = s.toTimeString().slice(0, 5);
+            document.getElementById('field-end').value = e.toTimeString().slice(0, 5);
+            document.getElementById('field-desc').value = editApt ? (editApt.description || '') : '';
+            const headline = document.getElementById('dialog-add').querySelector('[slot="headline"]');
+            if (headline) headline.textContent = editApt ? 'Afspraak bewerken' : 'Nieuwe afspraak';
+            dialog.show();
+        }
+
+        document.getElementById('btn-add').addEventListener('click', async () => {
+            initPDOKAutocomplete();
+            const now = new Date();
+            const start = new Date(currentDate);
+            start.setHours(now.getHours(), Math.ceil(now.getMinutes() / 15) * 15, 0, 0);
+            const end = new Date(start);
+            end.setHours(start.getHours() + 1, start.getMinutes(), 0, 0);
+            openAddDialog(start, end);
+        });
+
+        document.getElementById('appointments-container').addEventListener('click', async (e) => {
+            const card = e.target.closest('.appointment-card');
+            if (card) {
+                const aptId = card.dataset.aptId;
+                const apt = appointments.find(a => a.id === aptId);
+                if (apt) {
+                    let aptToEdit = apt;
+                    if (apt.isTravelBlock) {
+                        const dayApts = getAppointmentsForDate(currentDate);
+                        const nextApt = dayApts.find(a => !a.isTravelBlock && a.startTime === apt.endTime);
+                        if (nextApt) aptToEdit = nextApt;
+                    }
+                    currentDetailApt = apt;
+                    currentDetailAppointment = aptToEdit;
+                    const start = new Date(apt.startTime);
+                    const end = new Date(apt.endTime);
+                    const contentEl = document.getElementById('detail-content');
+                    contentEl.innerHTML = '';
+                    const addRow = (label, value) => {
+                        if (!value) return;
+                        const row = document.createElement('div');
+                        row.className = 'detail-row';
+                        row.innerHTML = `<span class="detail-label">${escapeHtml(label)}</span><span class="detail-value">${escapeHtml(value)}</span>`;
+                        contentEl.appendChild(row);
+                    };
+                    addRow('Titel', apt.title || 'Zonder titel');
+                    addRow('Tijd', `${formatTime(start)} – ${formatTime(end)}`);
+                    if (apt.isTravelBlock) {
+                        const from = apt.travelOrigin || (apt.location ? apt.location.replace(/^Van (.+) naar .+$/, '$1').trim() : '') || '—';
+                        const to = apt.travelDestination || (apt.location ? apt.location.replace(/^Van .+ naar (.+)$/, '$1').trim() : '') || '—';
+                        const dur = apt.travelMinutes != null ? apt.travelMinutes + ' min' : '';
+                        const dist = apt.travelDistanceKm != null ? ` (${apt.travelDistanceKm} km)` : '';
+                        addRow('Vertrek', from);
+                        addRow('Naar', to);
+                        addRow('Reistijd', dur + dist);
+                    } else {
+                        addRow('Locatie', apt.location || null);
+                        addRow('Omschrijving', apt.description || null);
+                    }
+                    document.getElementById('dialog-detail').show();
+                }
+                return;
+            }
+            initPDOKAutocomplete();
+            const rect = e.currentTarget.getBoundingClientRect();
+            const offsetY = e.clientY - rect.top;
+            const { hours, minutes } = timeForTop(offsetY);
+            const start = new Date(currentDate);
+            start.setHours(hours, minutes, 0, 0);
+            const end = new Date(start);
+            end.setHours(start.getHours() + 1, start.getMinutes(), 0, 0);
+            openAddDialog(start, end);
+        });
+
+        form.addEventListener('keydown', (e) => {
+            if (e.key !== 'Enter' || !e.ctrlKey) return;
+            e.preventDefault();
+            form.querySelector('[value="save"]')?.click();
+        });
+        form.addEventListener('submit', async (e) => {
+            if (e.submitter?.value !== 'save') return;
+            e.preventDefault();
+            const editingId = form.dataset.editingId || '';
+            if (editingId) {
+                const toRemove = appointments.find(a => a.id === editingId);
+                if (toRemove) {
+                    const aptStart = new Date(toRemove.startTime);
+                    const dayKey = dateKey(aptStart);
+                    const travelBlock = appointments.find(a =>
+                        a.isTravelBlock && dateKey(new Date(a.startTime)) === dayKey && a.endTime === toRemove.startTime
+                    );
+                    appointments = appointments.filter(a => a.id !== editingId && (!travelBlock || a.id !== travelBlock.id));
+                    saveAppointments(appointments);
+                }
+            }
+            const dateStr = document.getElementById('field-date').value;
+            const title = document.getElementById('field-title').value?.trim();
+            const location = document.getElementById('field-location').value?.trim();
+            const startStr = document.getElementById('field-start').value;
+            const endStr = document.getElementById('field-end').value;
+            const description = document.getElementById('field-desc').value?.trim();
+            if (!title || !startStr || !endStr || !dateStr) return;
+
+            const [y, m, d] = dateStr.split('-').map(Number);
+            const start = new Date(y, m - 1, d);
+            const [sh, sm] = startStr.split(':').map(Number);
+            start.setHours(sh, sm, 0, 0);
+            const end = new Date(y, m - 1, d);
+            const [eh, em] = endStr.split(':').map(Number);
+            end.setHours(eh, em, 0, 0);
+
+            const aptDate = new Date(y, m - 1, d);
+            const dayApts = getAppointmentsForDate(aptDate);
+            const previousWithLocation = dayApts
+                .filter(a => a.location && !a.isTravelBlock && new Date(a.endTime) <= start)
+                .sort((a, b) => new Date(b.endTime) - new Date(a.endTime))[0];
+            const origin = previousWithLocation ? previousWithLocation.location : HOME_ADDRESS;
+            const sameLocation = normalizeAddressForComparison(origin) === normalizeAddressForComparison(location);
+
+            const saveBtn = form.querySelector('[value="save"]');
+            const originalLabel = saveBtn.textContent;
+            if (location && GOOGLE_MAPS_API_KEY) {
+                saveBtn.disabled = true;
+                saveBtn.textContent = 'Reistijd berekenen…';
+            } else if (location && !GOOGLE_MAPS_API_KEY) {
+                console.warn('Planning App: Vul je Google Maps API key in config.js voor echte reistijden.');
+            }
+
+            let travelMinutes = 0;
+            let distanceKm = null;
+            let isEstimated = false;
+            if (location && !sameLocation) {
+                const placeId = locationInput.dataset?.placeId || undefined;
+                const result = await fetchTravelTime(origin, location, start, placeId);
+                travelMinutes = result.minutes;
+                distanceKm = result.distanceKm;
+                if (travelMinutes === 0 && !GOOGLE_MAPS_API_KEY) {
+                    travelMinutes = 15;
+                    isEstimated = true;
+                } else if (travelMinutes === 0) {
+                    travelMinutes = 15;
+                    isEstimated = true;
+                }
+            }
+
+            if (saveBtn) {
+                saveBtn.disabled = false;
+                saveBtn.textContent = originalLabel;
+            }
+
+            const newApts = [];
+            if (travelMinutes > 0 && location) {
+                const travelStart = new Date(start);
+                travelStart.setMinutes(travelStart.getMinutes() - travelMinutes);
+                const distText = distanceKm != null ? ` (${distanceKm} km)` : (isEstimated ? ' (geschat)' : '');
+                newApts.push({
+                    id: 't-' + Date.now(),
+                    title: '🚗 Reis naar ' + title,
+                    location: `Van ${origin} naar ${location}`,
+                    travelOrigin: origin,
+                    travelDestination: location,
+                    travelMinutes,
+                    travelDistanceKm: distanceKm,
+                    startTime: travelStart.toISOString(),
+                    endTime: start.toISOString(),
+                    description: `${travelMinutes} min${distText}`,
+                    isTravelBlock: true,
+                    projectId: null
+                });
+            }
+
+            newApts.push({
+                id: 'a-' + Date.now(),
+                title,
+                location: location || null,
+                startTime: start.toISOString(),
+                endTime: end.toISOString(),
+                description: description || null,
+                isTravelBlock: false,
+                projectId: null
+            });
+
+            appointments.push(...newApts);
+            saveAppointments(appointments);
+            currentDate = new Date(aptDate);
+            currentDate.setHours(0, 0, 0, 0);
+            render();
+            dialog.close('save');
+        });
+
+        dialog.addEventListener('close', () => {
+            hideSuggestions();
+            delete form.dataset.editingId;
+            if (dialog.returnValue === 'cancel' || dialog.returnValue === '') {
+                form.reset();
+            }
+        });
+
+        renderTimeGrid();
+        if (localStorage.getItem(STORAGE_KEY) === null) {
+            const today = new Date();
+            const todayStr = dateKey(today);
+            appointments = [
+                { id: 'demo-1', title: '🚗 Reis naar Meeting Chanel', location: `Van ${HOME_ADDRESS} naar P.C. Hooftstraat 123, Amsterdam`, travelOrigin: HOME_ADDRESS, travelDestination: 'P.C. Hooftstraat 123, Amsterdam', travelMinutes: 45, startTime: `${todayStr}T12:15:00`, endTime: `${todayStr}T13:00:00`, description: '45 min (45 km)', isTravelBlock: true, projectId: null },
+                { id: 'demo-2', title: 'Meeting Chanel', location: 'P.C. Hooftstraat 123, Amsterdam', startTime: `${todayStr}T13:00:00`, endTime: `${todayStr}T15:00:00`, description: 'UX Review Q1 - Design System', isTravelBlock: false, projectId: null },
+                { id: 'demo-3', title: 'Intern overleg', location: 'Kantoor Utrecht', startTime: `${todayStr}T16:30:00`, endTime: `${todayStr}T17:30:00`, description: null, isTravelBlock: false, projectId: null }
+            ];
+            saveAppointments(appointments);
+        }
+        currentDate = new Date();
+        currentDate.setHours(0, 0, 0, 0);
+        render();
+    </script>
+</body>
+</html>

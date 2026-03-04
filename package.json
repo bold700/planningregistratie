@@ -1,0 +1,9 @@
+{
+  "name": "planning-app-prototype",
+  "version": "0.1.0",
+  "description": "Planning app met reistijdberekening - prototype",
+  "scripts": {
+    "serve": "npx serve . -p 3333",
+    "demo": "npx serve . -p 3333"
+  }
+}
