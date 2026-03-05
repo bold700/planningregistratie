@@ -961,7 +961,7 @@
             document.getElementById('field-date').value = dateKey(d);
             document.getElementById('field-title').value = editApt ? (editApt.title || '').replace(/^🚗 Reis naar /, '') : '';
             document.getElementById('field-location').value = editApt ? (editApt.location || '') : '';
-            else if (!editApt) delete locationInput.dataset.placeId;
+            if (!editApt) delete locationInput.dataset.placeId;
             const s = editApt ? new Date(editApt.startTime) : start;
             const e = editApt ? new Date(editApt.endTime) : end;
             document.getElementById('field-start').value = s.toTimeString().slice(0, 5);
